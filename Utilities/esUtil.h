@@ -48,6 +48,10 @@ public:
    void (ESCALLBACK *drawFunc) ( ESContext * );
    void (ESCALLBACK *keyFunc) ( ESContext *, unsigned char, bool );
    void (ESCALLBACK *updateFunc) ( ESContext *, float deltaTime );
+private:
+   int done;
+   friend void esRelease(ESContext *esContext);
+   friend void WinLoop(ESContext *esContext);
 };
 
 

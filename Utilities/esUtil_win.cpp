@@ -2,8 +2,6 @@
 #include <windows.h>
 #include "esUtil.h"
 
-
-
 // Main window procedure
 LRESULT WINAPI ESWindowProc ( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam ) 
 {
@@ -109,16 +107,19 @@ GLboolean WinCreate ( ESContext *esContext, const char *title )
    return GL_TRUE;
 }
 
-
+void esRelease(ESContext *esContext)
+{
+  esContext->done=1;
+  DestroyWindow(esContext->hWnd);
+}
 
 //      Start main windows loop
 void WinLoop ( ESContext *esContext )
 {
    MSG msg = { 0 };
-   int done = 0;
    DWORD lastTime = GetTickCount();
-   
-   while (!done)
+   esContext->done = 0;
+   while (!esContext->done)
    {
       int gotMsg = (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) != 0);
       DWORD curTime = GetTickCount();
@@ -129,7 +130,7 @@ void WinLoop ( ESContext *esContext )
       {
          if (msg.message==WM_QUIT)
          {
-             done=1; 
+             esContext->done=1; 
          }
          else
          {

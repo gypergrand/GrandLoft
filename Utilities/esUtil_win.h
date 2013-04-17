@@ -7,5 +7,7 @@ GLboolean WinCreate ( ESContext *esContext, const char *title );
 
 
 // Start main windows loop
-void WinLoop ( ESContext *esContext );
+void WinLoop (ESContext *esContext);
+
+void esRelease(ESContext *esContext);
 

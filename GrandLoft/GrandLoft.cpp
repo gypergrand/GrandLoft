@@ -9,6 +9,8 @@
 GLuint vboId, ax_vbo;
 Shaders myShaders;
 
+static ESContext esContext;
+
 static VMATH::Vector3<GLfloat> *v = 0;
 static VMATH::Matrix4<GLfloat> projMat;
 static VMATH::Matrix4<GLfloat> viewMat;
@@ -128,14 +130,26 @@ void Update(ESContext *esContext, float deltaTime)
 
 void Key(ESContext *esContext, unsigned char key, bool bIsPressed)
 {
-  switch (key)
-  {
-    case 'W': viewMat.translateX(1); break;
-    case 'S': viewMat.translateX(-1); break;
-    case 'A': viewMat.translateY(1); break;
-    case 'D': viewMat.translateY(-1); break;
-    case 'Q': viewMat.translateZ(1); break;
-    case 'E': viewMat.translateZ(-1); break;
+  if (bIsPressed)
+	{
+    switch (key)
+    {
+      case VK_LEFT: viewMat.translateX(1); break;
+      case VK_RIGHT: viewMat.translateX(-1); break;
+      case VK_UP: viewMat.translateY(1); break;
+      case VK_DOWN: viewMat.translateY(-1); break;
+      case '+': viewMat.translateZ(1); break;
+      case '-': viewMat.translateZ(-1); break;
+
+      case 'W': viewMat.rotateX(1); break;
+      case 'S': viewMat.rotateX(-1); break;
+      case 'A': viewMat.rotateY(1); break;
+      case 'D': viewMat.rotateY(-1); break;
+      case 'Q': viewMat.rotateZ(1); break;
+      case 'E': viewMat.rotateZ(-1); break;
+
+      case VK_ESCAPE: esRelease(esContext);
+    }
   }
 }
 
@@ -147,7 +161,6 @@ void CleanUp()
 
 int _tmain(int argc, _TCHAR* argv[])
 { 
-	ESContext esContext;
   esInitContext(&esContext);
 	esCreateWindow(&esContext, "Hello Triangle", Globals::screenWidth, Globals::screenHeight, ES_WINDOW_RGB | ES_WINDOW_DEPTH);
 	if (Init(&esContext) != 0)
