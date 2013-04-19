@@ -1,5 +1,6 @@
 #pragma once
 #include "../Utilities/utilities.h" 
+//#include "esUtil.h"
 
 class Shaders 
 {
@@ -9,9 +10,8 @@ public:
 	char fileFS[260];
 	GLint positionAttribute;
   GLint colorAttribute;
-  GLint projectionUniform;
-  GLint viewUniform;
-  GLint modelUniform;
+  GLint worldUniform;
+  GLint textureAttribute;
 	int Init(char * fileVertexShader, char * fileFragmentShader);
 	~Shaders();
 };

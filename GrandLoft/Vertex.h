@@ -1,5 +1,7 @@
 #pragma once
 #include "vmath.h"
+//#include "esUtil.h"
+#include "../Utilities/utilities.h"
 
 struct Vertex 
 {

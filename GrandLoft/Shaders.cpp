@@ -13,12 +13,10 @@ int Shaders::Init(char * fileVertexShader, char * fileFragmentShader)
 		return -2;
 	}
 	program = esLoadProgram(vertexShader, fragmentShader);
-	// finding location of uniforms / attributes
 	positionAttribute = glGetAttribLocation(program, "a_posL");
   colorAttribute = glGetAttribLocation(program, "a_color");
-  projectionUniform = glGetUniformLocation(program, "a_projection");
-  viewUniform = glGetUniformLocation(program, "a_view");
-  modelUniform = glGetUniformLocation(program, "a_model");
+  worldUniform = glGetUniformLocation(program, "u_world");
+  textureAttribute = glGetAttribLocation(program, "a_texCoord");
 	return 0;
 }
 

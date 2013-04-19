@@ -116,7 +116,7 @@
 #define __vmath_Header_File__
 
 #include <iostream>
-#include "../Utilities/utilities.h" 
+//#include "../Utilities/utilities.h" 
 //#include <cmath>
 //#include <cstring>
 //#include <string>
@@ -2313,6 +2313,27 @@ public:
     return *this;
   }
 
+  Matrix4<T>& rotateXc(T& angle)
+  {
+    if (angle <=-360.0) angle+=360.0; else
+    if (angle >=360.0) angle-=360.0;
+    return rotateX(angle);
+  }
+
+  Matrix4<T>& rotateYc(T& angle)
+  {
+    if (angle <=-360.0) angle+=360.0; else
+    if (angle >=360.0) angle-=360.0;
+    return rotateY(angle);
+  }
+
+  Matrix4<T>& rotateZc(T& angle)
+  {
+    if (angle <=-360.0) angle+=360.0; else
+    if (angle >=360.0) angle-=360.0;
+    return rotateZ(angle);
+  }
+
   Matrix4<T>& rotateX(T angle)
   {
     T c = cos(DEG2RAD(angle));
@@ -2433,12 +2454,10 @@ public:
 
   Matrix4<T>& translate(T x, T y, T z)
   {
-    if (x != 0) {
-    data[0] += data[12]*x;   data[1] += data[13]*x;   data[2] += data[14]*x;   data[3] += data[15]*x; }
-    if (y != 0) {
-    data[4] += data[12]*y;   data[5] += data[13]*y;   data[6] += data[14]*y;   data[7] += data[15]*y; }
-    if (z != 0) {
-    data[8] += data[12]*z;   data[9] += data[13]*z;   data[10]+= data[14]*z;   data[11]+= data[15]*z; }
+    at(3, 0) = x;
+		at(3, 1) = y;
+		at(3, 2) = z;
+		at(3, 3) = 1;
     return *this;
   }
 
@@ -2642,11 +2661,11 @@ public:
 		return ret;
 	}
 
-  Matrix4<T>& perspective(T fieldOfView, T aspectRatio, T nearp, T farp)
+  Matrix4<T>& perspective(T fieldOfView, T aspectRatio, T znear, T zfar)
   {
-	  T fH = (T)std::tan((double)fieldOfView/360.0f*3.14159f)*nearp;
+	  T fH = (T)std::tan((double)fieldOfView/360.0f*3.14159f)*znear;
 	  T fW = fH * aspectRatio;
-	  return frustum(-fW, fW, -fH, fH, nearp, farp);
+	  return frustum(-fW, fW, -fH, fH, znear, zfar);
   }
 
   Matrix4<T>& ortho(T left, T right, T bottom, T top, T zNear, T zFar)
@@ -2860,19 +2879,6 @@ public:
 		assert(i >= 1 && i <= 4);
 		assert(j >= 1 && j <= 4);
 		return data[(j - 1) * 4 + i - 1];
-	}
-
-	/**
-	 * Sets translation part of matrix.
-	 *
-	 * @param v Vector of translation to be set.
-	 */
-	void setTranslation(const Vector3<T>& v)
-	{
-		at(3, 0) = v.x;
-		at(3, 1) = v.y;
-		at(3, 2) = v.z;
-		at(3, 3) = 1;
 	}
 
 	Vector3<T> getTranslation()
