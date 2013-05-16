@@ -9,36 +9,37 @@
 #include <conio.h>
 #include <windows.h>
 
-GLuint vboId, ax_vbo;
+GLuint vboId, ax_vbo, textureId1, mvert1, mind1, mtex1;
 Shaders myShaders;
 static ESContext esContext;
 static VMATH::Vector3<GLfloat> *v = 0;
-static VMATH::Matrix4<GLfloat> projection, modelview, world;
+static VMATH::Matrix4<GLfloat> projection, model, view, world;
 static GLfloat translateX = 0, translateY = 0, translateZ = 0, 
-               rotateX = 0, rotateY = 0, rotateZ = 0, 
-               scaleX = 1, scaleY = 1, scaleZ = 1,
-               fovy = 90.0f, zNear = 0.01f, zFar = 10.0f, scl=0.1f;
+         rotateX = 0, rotateY = 0, rotateZ = 0, 
+         scaleX = 1, scaleY = 1, scaleZ = 1,
+         fovy = 30.0f, zNear = 1.0f, zFar = 100.0f, scl=0.1f;
+Model* bus;
 
 #pragma region funcs
 
 enum ConsoleColor
 {
-    Black         = 0,
-    Blue          = 1,
-    Green         = 2,
-    Cyan          = 3,
-    Red           = 4,
-    Magenta       = 5,
-    Brown         = 6,
-    LightGray     = 7,
-    DarkGray      = 8,
-    LightBlue     = 9,
-    LightGreen    = 10,
-    LightCyan     = 11,
-    LightRed      = 12,
-    LightMagenta  = 13,
-    Yellow        = 14,
-    White         = 15
+  Black     = 0,
+  Blue      = 1,
+  Green     = 2,
+  Cyan      = 3,
+  Red       = 4,
+  Magenta     = 5,
+  Brown     = 6,
+  LightGray   = 7,
+  DarkGray    = 8,
+  LightBlue   = 9,
+  LightGreen  = 10,
+  LightCyan   = 11,
+  LightRed    = 12,
+  LightMagenta  = 13,
+  Yellow    = 14,
+  White     = 15
 };
 
 void SetColor(int text, int background)
@@ -48,17 +49,17 @@ void SetColor(int text, int background)
 }
 
 void wherexy(int& x, int& y){ 
-	CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
-	HANDLE hStd = GetStdHandle(STD_OUTPUT_HANDLE); 
-	if (!GetConsoleScreenBufferInfo(hStd, &screenBufferInfo)) 
-		printf("GetConsoleScreenBufferInfo (%d)\n", GetLastError()); 
-	x = screenBufferInfo.dwCursorPosition.X; 
-	y = screenBufferInfo.dwCursorPosition.Y;
+  CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
+  HANDLE hStd = GetStdHandle(STD_OUTPUT_HANDLE); 
+  if (!GetConsoleScreenBufferInfo(hStd, &screenBufferInfo)) 
+  printf("GetConsoleScreenBufferInfo (%d)\n", GetLastError()); 
+  x = screenBufferInfo.dwCursorPosition.X; 
+  y = screenBufferInfo.dwCursorPosition.Y;
 }
 
 void gotoxy(int x,int y){
-	COORD c={x,y};
-	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE),c);
+  COORD c={x,y};
+  SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE),c);
 }
 
 void printstat()
@@ -122,168 +123,235 @@ void printstat()
 
 void ResizeScreen(GLsizei screenWidth, GLsizei screenHeight)
 {
-  glViewport(0, 0, screenWidth, screenHeight);
   GLfloat aspect = screenWidth > screenHeight ? (GLfloat)screenWidth/(GLfloat)screenHeight : (GLfloat)screenHeight/(GLfloat)screenWidth;
   projection.identity();
   projection.perspective(fovy, aspect, zNear, zFar);
 }
 
+Model* LoadNFG(const char* file)
+{
+  FILE* f=fopen(file,"rt");
+  if (f==NULL) return NULL;
+  int cnt=0, cni=0;
+  cni = fscanf_s(f, "NrVertices: %d",&cnt);
+  if (cni<1) 
+  {
+    fclose(f);
+    return NULL;
+  }
+  Model* m = new Model;
+  m->ind = NULL;
+  m->vert = new Vertex[cnt];
+  cni=0;
+  for (int i=0;i<cnt;i++)
+  cni+=fscanf_s(f, " %*d. pos:[%f, %f, %f]; norm:[%f, %f, %f]; binorm:[%f, %f, %f]; tgt:[%f, %f, %f]; uv:[%f, %f];",
+  &m->vert[i].pos.x, &m->vert[i].pos.y, &m->vert[i].pos.z, 
+  &m->vert[i].normal.x, &m->vert[i].normal.y, &m->vert[i].normal.z,
+  &m->vert[i].binormal.x, &m->vert[i].binormal.y, &m->vert[i].binormal.z,
+  &m->vert[i].tgt.x, &m->vert[i].tgt.y, &m->vert[i].tgt.z,
+  &m->vert[i].u, &m->vert[i].v);
+  if (cni<1) goto err;
+  cni = fscanf_s(f, "\nNrIndices: %d",&cnt);
+  if (cni<1) goto err;
+  m->ind = new Index[cnt/3];
+  cni=0;
+  while (!feof(f))
+  cni+=fscanf_s(f, " %*d.    %d, %d, %d", &m->ind[cni/3].pos.x, &m->ind[cni/3].pos.y, &m->ind[cni/3].pos.z); 
+  if (cni<1)
+  {
+  err:
+    delete [] m->vert;
+    if (m->ind!=NULL)
+    delete [] m->ind;
+    delete m;
+    m = NULL;
+  }
+  fclose(f);
+  return m;
+}
+
+GLuint LoadTexture2DFromTGA(const char* TGA, GLint fmin, GLint fmax)
+{
+  GLuint tex;
+  glGenTextures(1, &tex);  
+  glBindTexture(GL_TEXTURE_2D, tex);  
+  int width, height, bpp; 
+  char * bufferTGA = LoadTGA(TGA, &width, &height, &bpp);
+  if (bufferTGA == NULL) return 0;  
+  if (bpp == 24)  
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, bufferTGA); else 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bufferTGA); 
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, fmin);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, fmax); 
+  glBindTexture(GL_TEXTURE_2D, 0);  
+  delete [] bufferTGA;
+  return tex;
+}
+                                                                
 int Init(ESContext *esContext)
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  glClearDepthf(1.0f);
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+  
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_LEQUAL);
+  glClearDepthf(1.0f);
+  glDisable(GL_DITHER);
 
   ResizeScreen(Globals::screenWidth, Globals::screenHeight);
 
-	Vertex verticesData[3], axisData[6];
-	verticesData[0].pos.x =  0.0f;  verticesData[0].pos.y =  0.5f;  verticesData[0].pos.z = 0.0f;
-	verticesData[1].pos.x = -0.5f;  verticesData[1].pos.y = -0.5f;  verticesData[1].pos.z = 0.0f;
-	verticesData[2].pos.x =  0.5f;  verticesData[2].pos.y = -0.5f;  verticesData[2].pos.z = 0.0f;
+  Vertex verticesData[3], axisData[6];
+  verticesData[0].pos.x =  0.0f;  verticesData[0].pos.y =  0.5f;  verticesData[0].pos.z = 0.0f;
+  verticesData[1].pos.x = -0.5f;  verticesData[1].pos.y = -0.5f;  verticesData[1].pos.z = 0.0f;
+  verticesData[2].pos.x =  0.5f;  verticesData[2].pos.y = -0.5f;  verticesData[2].pos.z = 0.0f;
   verticesData[0].color.r = 1.0f;  verticesData[0].color.g = 0.0f;  verticesData[0].color.b = 0.0f;
-	verticesData[1].color.r = 0.0f;  verticesData[1].color.g = 1.0f;  verticesData[1].color.b = 0.0f;
-	verticesData[2].color.r = 0.0f;  verticesData[2].color.g = 0.0f;  verticesData[2].color.b = 1.0f;
+  verticesData[1].color.r = 0.0f;  verticesData[1].color.g = 1.0f;  verticesData[1].color.b = 0.0f;
+  verticesData[2].color.r = 0.0f;  verticesData[2].color.g = 0.0f;  verticesData[2].color.b = 1.0f;
+  verticesData[0].u = 0.5; verticesData[0].v = 1.0;
+  verticesData[1].u = 0.0; verticesData[1].v = 0.0;
+  verticesData[2].u = 1.0; verticesData[2].v = 0.0;
 
   axisData[0].pos.x = -1.0f;  axisData[0].pos.y =  0.0f;  axisData[0].pos.z =  0.0f;
-	axisData[1].pos.x =  1.0f;  axisData[1].pos.y =  0.0f;  axisData[1].pos.z =  0.0f;
-	axisData[2].pos.x =  0.0f;  axisData[2].pos.y = -1.0f;  axisData[2].pos.z =  0.0f;
+  axisData[1].pos.x =  1.0f;  axisData[1].pos.y =  0.0f;  axisData[1].pos.z =  0.0f;
+  axisData[2].pos.x =  0.0f;  axisData[2].pos.y = -1.0f;  axisData[2].pos.z =  0.0f;
   axisData[3].pos.x =  0.0f;  axisData[3].pos.y =  1.0f;  axisData[3].pos.z =  0.0f;
-	axisData[4].pos.x =  0.0f;  axisData[4].pos.y =  0.0f;  axisData[4].pos.z = -1.0f;
-	axisData[5].pos.x =  0.0f;  axisData[5].pos.y =  0.0f;  axisData[5].pos.z =  1.0f;
+  axisData[4].pos.x =  0.0f;  axisData[4].pos.y =  0.0f;  axisData[4].pos.z = -1.0f;
+  axisData[5].pos.x =  0.0f;  axisData[5].pos.y =  0.0f;  axisData[5].pos.z =  1.0f;
   axisData[0].color.r = 1.0f;  axisData[0].color.g = 0.0f;  axisData[0].color.b = 0.0f;
-	axisData[1].color.r = 1.0f;  axisData[1].color.g = 0.0f;  axisData[1].color.b = 0.0f;
-	axisData[2].color.r = 0.0f;  axisData[2].color.g = 1.0f;  axisData[2].color.b = 0.0f;
+  axisData[1].color.r = 1.0f;  axisData[1].color.g = 0.0f;  axisData[1].color.b = 0.0f;
+  axisData[2].color.r = 0.0f;  axisData[2].color.g = 1.0f;  axisData[2].color.b = 0.0f;
   axisData[3].color.r = 0.0f;  axisData[3].color.g = 1.0f;  axisData[3].color.b = 0.0f;
-	axisData[4].color.r = 0.0f;  axisData[4].color.g = 1.0f;  axisData[4].color.b = 1.0f;
-	axisData[5].color.r = 0.0f;  axisData[5].color.g = 1.0f;  axisData[5].color.b = 1.0f;
+  axisData[4].color.r = 0.0f;  axisData[4].color.g = 1.0f;  axisData[4].color.b = 1.0f;
+  axisData[5].color.r = 0.0f;  axisData[5].color.g = 1.0f;  axisData[5].color.b = 1.0f;
 
-	glGenBuffers(1, &vboId); 
-	glBindBuffer(GL_ARRAY_BUFFER, vboId);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(verticesData), verticesData, GL_STATIC_DRAW); 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+  bus = LoadNFG("../Resources/Models/bus.nfg");
+
+  glGenBuffers(1, &vboId); 
+  glBindBuffer(GL_ARRAY_BUFFER, vboId);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(verticesData), verticesData, GL_STATIC_DRAW); 
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   glGenBuffers(1, &ax_vbo); 
-	glBindBuffer(GL_ARRAY_BUFFER, ax_vbo); 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(axisData), axisData, GL_STATIC_DRAW); 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ARRAY_BUFFER, ax_vbo); 
+  glBufferData(GL_ARRAY_BUFFER, sizeof(axisData), axisData, GL_STATIC_DRAW); 
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	return myShaders.Init("../Resources/Shaders/TriangleShaderVS.vs", "../Resources/Shaders/TriangleShaderFS.fs");
+  glGenBuffers(1, &mvert1); 
+  glBindBuffer(GL_ARRAY_BUFFER, mvert1); 
+  glBufferData(GL_ARRAY_BUFFER, 683, bus->vert, GL_STATIC_DRAW); 
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glGenBuffers(1, &mind1);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mind1);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1902, bus->ind, GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  mtex1 = LoadTexture2DFromTGA("../Resources/Textures/Bus.tga",GL_NEAREST,GL_NEAREST);
+
+  
+
+  textureId1 = LoadTexture2DFromTGA("../Resources/Textures/Rock.tga",GL_NEAREST,GL_NEAREST);
+
+  return myShaders.Init("../Resources/Shaders/TriangleShaderVS.vs", "../Resources/Shaders/TriangleShaderFS.fs");
+}
+
+void DrawArrays(GLuint vbuffer, GLuint ibuffer, GLenum mode, GLint first, GLsizei count, GLuint texture)
+{
+  int tex_on = 0;
+  if (texture != 0) 
+    tex_on = 1;
+  if (vbuffer == 0) return;
+  glBindBuffer(GL_ARRAY_BUFFER, vbuffer);
+  if (ibuffer != 0)
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuffer);
+  if(myShaders.positionAttribute != -1)
+  {   
+    glEnableVertexAttribArray(myShaders.positionAttribute);
+    glVertexAttribPointer(myShaders.positionAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v);
+  }
+  if(myShaders.colorAttribute != -1)
+  {   
+    glEnableVertexAttribArray(myShaders.colorAttribute);
+    glVertexAttribPointer(myShaders.colorAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v+1);
+  }
+  if(myShaders.textureAttribute != -1)
+  {
+    glEnableVertexAttribArray(myShaders.textureAttribute);
+    glVertexAttribPointer(myShaders.textureAttribute, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), v+5);
+  }
+  if(myShaders.worldUniform != -1)
+    glUniformMatrix4fv(myShaders.worldUniform, 1, GL_FALSE, (GLfloat*)&world);
+  if(myShaders.texturedUniform != -1)
+    glUniform1i(myShaders.texturedUniform, tex_on);
+  if (tex_on==1)
+  {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(myShaders.samplerUniform, 0);
+  }
+  if (ibuffer != 0)
+  glDrawElements(mode, count, GL_UNSIGNED_SHORT, bus->ind); else
+  glDrawArrays(mode, first, count);
+  if(myShaders.positionAttribute != -1)
+    glDisableVertexAttribArray(myShaders.positionAttribute);
+  if(myShaders.colorAttribute != -1)
+    glDisableVertexAttribArray(myShaders.colorAttribute);
+  if(myShaders.textureAttribute != -1)
+    glDisableVertexAttribArray(myShaders.textureAttribute);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  if (ibuffer != 0)
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  if (tex_on==1)
+  glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Draw(ESContext *esContext)
 {
+  glViewport(0, 0, Globals::screenWidth, Globals::screenHeight);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(myShaders.program);
- 
-  world.identity();
-  //world=projection;
- // world.ortho(0, 0, (GLsizei)Globals::screenWidth, (GLsizei)Globals::screenHeight, zNear, zFar);
-  world.rotateX(45.0);
-  world.rotateY(-30.0);
-  //world.rotateZ(-45.0);
-  //world.scale(scl,scl,scl);
-  //VMATH::Vector3<GLfloat> eye(0,1,-1), up(0,1,0), center(0,0,0);
-  //world.lookAt(eye, center, up);
-
-  world=world*projection;
-
-  // Вывод осей координат
-  {
-  glBindBuffer(GL_ARRAY_BUFFER, ax_vbo);
-  if(myShaders.positionAttribute != -1)
-	{   
-		glEnableVertexAttribArray(myShaders.positionAttribute);
-		glVertexAttribPointer(myShaders.positionAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v);
-	}
-  if(myShaders.colorAttribute != -1)
-	{   
-		glEnableVertexAttribArray(myShaders.colorAttribute);
-		glVertexAttribPointer(myShaders.colorAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v+1);
-	}
-  if(myShaders.worldUniform != -1)
-	glUniformMatrix4fv(myShaders.worldUniform, 1, GL_FALSE, (GLfloat*)&world);
-  glDrawArrays(GL_LINES, 0, 6);
-  if(myShaders.positionAttribute != -1)
-  glDisableVertexAttribArray(myShaders.positionAttribute);
-  if(myShaders.colorAttribute != -1)
-  glDisableVertexAttribArray(myShaders.colorAttribute);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
-
-  world.identity();
-  //world.scale(scl,scl,scl);
+  glUseProgram(myShaders.program);
   
-  world.rotateXc(rotateX);
-  world.rotateYc(rotateY);
-  world.rotateZc(rotateZ);
-  //world.scale(scaleX*scl,scaleY*scl,scaleZ*scl);
-  world.scale(scaleX,scaleY,scaleZ);
-  world.translate(translateX,translateY,translateZ);
-  world=world*projection;
+  model.identity();
+  model.scale(5);
+  world=projection*view*model;
 
-  // Вывод треугольника
-  {
-  glBindBuffer(GL_ARRAY_BUFFER, vboId);
-  if(myShaders.positionAttribute != -1)
-	{   
-		glEnableVertexAttribArray(myShaders.positionAttribute);
-		glVertexAttribPointer(myShaders.positionAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v);
-	}
-  if(myShaders.colorAttribute != -1)
-	{   
-		glEnableVertexAttribArray(myShaders.colorAttribute);
-		glVertexAttribPointer(myShaders.colorAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v+1);
-	}
-  if(myShaders.worldUniform != -1)
-	glUniformMatrix4fv(myShaders.worldUniform, 1, GL_FALSE, (GLfloat*)&world);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
-  if(myShaders.positionAttribute != -1)
-  glDisableVertexAttribArray(myShaders.positionAttribute);
-  if(myShaders.colorAttribute != -1)
-  glDisableVertexAttribArray(myShaders.colorAttribute);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
+  DrawArrays(ax_vbo, 0, GL_LINES, 0, 6, 0);
 
-  world.rotateY(90);
+  model.identity();
+  model.translateX(1);
+  world=projection*view*model;
 
-  // Вывод треугольника 2
-  {
-  glBindBuffer(GL_ARRAY_BUFFER, vboId);
-  if(myShaders.positionAttribute != -1)
-	{   
-		glEnableVertexAttribArray(myShaders.positionAttribute);
-		glVertexAttribPointer(myShaders.positionAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v);
-	}
-  if(myShaders.colorAttribute != -1)
-	{   
-		glEnableVertexAttribArray(myShaders.colorAttribute);
-		glVertexAttribPointer(myShaders.colorAttribute, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), v+1);
-	}
-  if(myShaders.worldUniform != -1)
-	glUniformMatrix4fv(myShaders.worldUniform, 1, GL_FALSE, (GLfloat*)&world);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
-  if(myShaders.positionAttribute != -1)
-  glDisableVertexAttribArray(myShaders.positionAttribute);
-  if(myShaders.colorAttribute != -1)
-  glDisableVertexAttribArray(myShaders.colorAttribute);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
+  DrawArrays(vboId, 0, GL_TRIANGLES, 0, 3, 0);
 
-  world.identity();
+  model.rotateY(90);
+  world=projection*view*model;
 
-	eglSwapBuffers(esContext->eglDisplay, esContext->eglSurface);
+  DrawArrays(vboId, 0, GL_TRIANGLES, 0, 3, textureId1);
+
+  model.translateX(-2);
+  world=projection*view*model;
+
+  DrawArrays(mvert1, mind1, GL_TRIANGLE_STRIP, 0, 1902, mtex1);
+
+  eglSwapBuffers(esContext->eglDisplay, esContext->eglSurface);
 }
 
 void Update(ESContext *esContext, float deltaTime)
 {
- // world=world*projection;
+  view.identity();
+  VMATH::Vector3f eye(0,0,10), center(0,0,9), up(0,1,0);
+  view.lookAt(eye, center, up);
+  view.rotateXc(rotateX);
+  view.rotateYc(rotateY);
+  view.rotateZc(rotateZ);
+  view.scale(scaleX,scaleY,scaleZ);  
+  view.translate(translateX,translateY,translateZ);
+  world=projection*view*model;
 }
 
 void Key(ESContext *esContext, unsigned char key, bool bIsPressed)
 {
   if (bIsPressed)
-	{
+  {
     switch (key)
     {
       case VK_LEFT: translateX-=1; printstat(); break;
@@ -297,6 +365,7 @@ void Key(ESContext *esContext, unsigned char key, bool bIsPressed)
       case 'S': rotateX-=1; printstat(); break;
       case 'A': rotateY+=1; printstat(); break;
       case 'D': rotateY-=1; printstat(); break;
+
       case 'Q': rotateZ+=1; printstat(); break;
       case 'E': rotateZ-=1; printstat(); break;
 
@@ -317,12 +386,26 @@ void Key(ESContext *esContext, unsigned char key, bool bIsPressed)
       case VK_ESCAPE: esRelease(esContext);
     }
   }
+  else
+  {
+  //switch (key)
+  //{
+  //  default: break;
+  //}
+  }
 }
 
 void CleanUp()
 {
-	glDeleteBuffers(1, &vboId);
+  delete [] bus->vert;
+  delete [] bus->ind;
+  delete bus;
+  glDeleteBuffers(1, &vboId);
   glDeleteBuffers(1, &ax_vbo);
+  glDeleteBuffers(1, &mvert1);
+  glDeleteBuffers(1, &mind1);
+  glDeleteTextures(1, &mtex1);
+  glDeleteTextures(1, &textureId1);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -330,20 +413,24 @@ int _tmain(int argc, _TCHAR* argv[])
   SetColor(White,Black);
   printstat();
   esInitContext(&esContext);
-	esCreateWindow(&esContext, "Hello Triangle", Globals::screenWidth, Globals::screenHeight, ES_WINDOW_RGB | ES_WINDOW_DEPTH);
-	if (Init(&esContext) != 0) return 0;
-	esRegisterDrawFunc(&esContext, Draw );
-	esRegisterUpdateFunc(&esContext, Update);
-	esRegisterKeyFunc(&esContext, Key);
-	esMainLoop(&esContext);
-	CleanUp();  
-
+  esCreateWindow(&esContext, "Hello Triangle", Globals::screenWidth, Globals::screenHeight, ES_WINDOW_RGB | ES_WINDOW_DEPTH);
+  if (Init(&esContext) != 0) goto end_x;
+  esRegisterDrawFunc(&esContext, Draw );
+  esRegisterUpdateFunc(&esContext, Update);
+  esRegisterKeyFunc(&esContext, Key);
+ // esre
+  esMainLoop(&esContext);
+  goto dmp;
   //VMATH::Matrix4d md;
   //md.translateX(55);
   //printf("Orthogonal factor: %d \n",md.isOrtogonal()); 
-
-	MemoryDump(); // identifying memory leaks
-	printf("Press any key...\n");
-	_getch();
-	return 0;
+  end_x:
+  printf("Error initializing scene!\n");
+  CleanUp(); 
+  esRelease(&esContext);
+  dmp: 
+  MemoryDump(); // identifying memory leaks
+  printf("Press any key...\n");
+  _getch();
+  return 0;
 }

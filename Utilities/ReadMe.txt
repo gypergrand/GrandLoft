@@ -1,5 +1,5 @@
 ========================================================================
-    STATIC LIBRARY : Utilities Project Overview
+  STATIC LIBRARY : Utilities Project Overview
 ========================================================================
 
 AppWizard has created this Utilities library project for you.
@@ -9,17 +9,17 @@ make up your Utilities application.
 
 
 Utilities.vcproj
-    This is the main project file for VC++ projects generated using an Application Wizard.
-    It contains information about the version of Visual C++ that generated the file, and
-    information about the platforms, configurations, and project features selected with the
-    Application Wizard.
+  This is the main project file for VC++ projects generated using an Application Wizard.
+  It contains information about the version of Visual C++ that generated the file, and
+  information about the platforms, configurations, and project features selected with the
+  Application Wizard.
 
 
 /////////////////////////////////////////////////////////////////////////////
 
 StdAfx.h, StdAfx.cpp
-    These files are used to build a precompiled header (PCH) file
-    named Utilities.pch and a precompiled types file named StdAfx.obj.
+  These files are used to build a precompiled header (PCH) file
+  named Utilities.pch and a precompiled types file named StdAfx.obj.
 
 /////////////////////////////////////////////////////////////////////////////
 Other notes:

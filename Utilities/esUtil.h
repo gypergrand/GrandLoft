@@ -9,13 +9,13 @@
 
 
 /// esCreateWindow flag - RGB color buffer
-#define ES_WINDOW_RGB           0
+#define ES_WINDOW_RGB       0
 /// esCreateWindow flag - ALPHA color buffer
-#define ES_WINDOW_ALPHA         1 
+#define ES_WINDOW_ALPHA     1 
 /// esCreateWindow flag - depth buffer
-#define ES_WINDOW_DEPTH         2 
+#define ES_WINDOW_DEPTH     2 
 /// esCreateWindow flag - stencil buffer
-#define ES_WINDOW_STENCIL       4
+#define ES_WINDOW_STENCIL     4
 /// esCreateWindow flat - multi-sample buffer
 #define ES_WINDOW_MULTISAMPLE   8
 
@@ -27,17 +27,17 @@ class ESContext
 {
 public:
    /// Window width
-   GLint       width;
+   GLint     width;
 
    /// Window height
-   GLint       height;
+   GLint     height;
 
    /// Window handle
    EGLNativeWindowType  hWnd;
 
    /// EGL display
    EGLDisplay  eglDisplay;
-      
+    
    /// EGL context
    EGLContext  eglContext;
 
@@ -70,11 +70,11 @@ void ESUTIL_API esInitContext ( ESContext *esContext );
 /// \param width Width in pixels of window to create
 /// \param height Height in pixels of window to create
 /// \param flags Bitfield for the window creation flags 
-///         ES_WINDOW_RGB     - specifies that the color buffer should have R,G,B channels
-///         ES_WINDOW_ALPHA   - specifies that the color buffer should have alpha
-///         ES_WINDOW_DEPTH   - specifies that a depth buffer should be created
-///         ES_WINDOW_STENCIL - specifies that a stencil buffer should be created
-///         ES_WINDOW_MULTISAMPLE - specifies that a multi-sample buffer should be created
+///     ES_WINDOW_RGB   - specifies that the color buffer should have R,G,B channels
+///     ES_WINDOW_ALPHA   - specifies that the color buffer should have alpha
+///     ES_WINDOW_DEPTH   - specifies that a depth buffer should be created
+///     ES_WINDOW_STENCIL - specifies that a stencil buffer should be created
+///     ES_WINDOW_MULTISAMPLE - specifies that a multi-sample buffer should be created
 /// \return GL_TRUE if window creation is succesful, GL_FALSE otherwise
 GLboolean ESUTIL_API esCreateWindow ( ESContext *esContext, const char *title, GLint width, GLint height, GLuint flags );
 
@@ -104,7 +104,7 @@ void ESUTIL_API esRegisterUpdateFunc ( ESContext *esContext, void (ESCALLBACK *u
 /// \param keyFunc Key callback function for application processing of keyboard input
 //
 void ESUTIL_API esRegisterKeyFunc ( ESContext *esContext, 
-                                    void (ESCALLBACK *drawFunc) ( ESContext*, unsigned char, bool ) );
+                  void (ESCALLBACK *drawFunc) ( ESContext*, unsigned char, bool ) );
 //
 /// \brief Log a message to the debug output for the platform
 /// \param formatStr Format string for error log.  
@@ -123,22 +123,9 @@ GLuint ESUTIL_API esLoadShader ( GLenum type, char * filename);
 //
 ///
 /// \brief Load a vertex and fragment shader, create a program object, link program.
-///        Errors output to log.
+///    Errors output to log.
 /// \param vertShaderSrc Vertex shader source code
 /// \param fragShaderSrc Fragment shader source code
 /// \return A new program object linked with the vertex/fragment shader pair, 0 on failure
 //
 GLuint ESUTIL_API esLoadProgram ( GLuint vertexShader, GLuint fragmentShader );
-
-
-
-
-
-
-
-
-
-
-
-
-

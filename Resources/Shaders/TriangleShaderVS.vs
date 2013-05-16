@@ -11,4 +11,3 @@ void main()
   v_texCoord = a_texCoord;
   gl_Position = u_world * posL; 
 }
-   

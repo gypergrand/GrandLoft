@@ -5,6 +5,17 @@
 
 struct Vertex 
 {
-	VMATH::Vector3<GLfloat> pos, color, normal;
+  VMATH::Vector3<GLfloat> pos, color, normal, binormal, tgt;
   GLfloat u,v;
+};
+
+struct Index 
+{
+  VMATH::Vector3<GLushort> pos;
+};
+
+struct Model 
+{
+  Vertex* vert;
+  Index* ind;
 };

@@ -56,7 +56,7 @@ template class Matrix4<double>;
 template class Matrix4<int>;
 template class Quaternion<float>;
 template class Quaternion<double>;
-	
+  
 #ifdef VMATH_NAMESPACE
 }
 #endif
