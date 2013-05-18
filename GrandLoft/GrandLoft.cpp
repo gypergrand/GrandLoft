@@ -18,7 +18,6 @@ static GLfloat translateX = 0, translateY = 0, translateZ = 0,
          rotateX = 0, rotateY = 0, rotateZ = 0, 
          scaleX = 1, scaleY = 1, scaleZ = 1,
          fovy = 30.0f, zNear = 1.0f, zFar = 100.0f, scl=0.1f;
-Model* bus;
 
 #pragma region funcs
 
@@ -153,10 +152,10 @@ Model* LoadNFG(const char* file)
   if (cni<1) goto err;
   cni = fscanf_s(f, "\nNrIndices: %d",&cnt);
   if (cni<1) goto err;
-  m->ind = new Index[cnt/3];
+  m->ind = new Index[cnt+1];
   cni=0;
-  while (!feof(f))
-  cni+=fscanf_s(f, " %*d.    %d, %d, %d", &m->ind[cni/3].pos.x, &m->ind[cni/3].pos.y, &m->ind[cni/3].pos.z); 
+  for(int i=0;i<cnt;i+=3)
+  cni+=fscanf_s(f, " %*d.    %d, %d, %d", &m->ind[i], &m->ind[i+1], &m->ind[i+2]); 
   if (cni<1)
   {
   err:
@@ -170,7 +169,7 @@ Model* LoadNFG(const char* file)
   return m;
 }
 
-GLuint LoadTexture2DFromTGA(const char* TGA, GLint fmin, GLint fmax)
+GLuint LoadTexture2DFromTGA(const char* TGA, GLint fmin, GLint fmax, GLint wrap_s, GLint wrap_t)
 {
   GLuint tex;
   glGenTextures(1, &tex);  
@@ -183,6 +182,8 @@ GLuint LoadTexture2DFromTGA(const char* TGA, GLint fmin, GLint fmax)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bufferTGA); 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, fmin);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, fmax); 
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_s);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_t);
   glBindTexture(GL_TEXTURE_2D, 0);  
   delete [] bufferTGA;
   return tex;
@@ -223,7 +224,7 @@ int Init(ESContext *esContext)
   axisData[4].color.r = 0.0f;  axisData[4].color.g = 1.0f;  axisData[4].color.b = 1.0f;
   axisData[5].color.r = 0.0f;  axisData[5].color.g = 1.0f;  axisData[5].color.b = 1.0f;
 
-  bus = LoadNFG("../Resources/Models/bus.nfg");
+  Model* bus = LoadNFG("../Resources/Models/bus.nfg");
 
   glGenBuffers(1, &vboId); 
   glBindBuffer(GL_ARRAY_BUFFER, vboId);
@@ -237,20 +238,22 @@ int Init(ESContext *esContext)
 
   glGenBuffers(1, &mvert1); 
   glBindBuffer(GL_ARRAY_BUFFER, mvert1); 
-  glBufferData(GL_ARRAY_BUFFER, 683, bus->vert, GL_STATIC_DRAW); 
+  glBufferData(GL_ARRAY_BUFFER, 683*sizeof(Vertex), bus->vert, GL_STATIC_DRAW); 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   glGenBuffers(1, &mind1);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mind1);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1902, bus->ind, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 1902*sizeof(Index), bus->ind, GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  mtex1 = LoadTexture2DFromTGA("../Resources/Textures/Bus.tga",GL_NEAREST,GL_NEAREST);
+  delete [] bus->vert;
+  delete [] bus->ind;
+  delete bus;
 
-  
-
-  textureId1 = LoadTexture2DFromTGA("../Resources/Textures/Rock.tga",GL_NEAREST,GL_NEAREST);
-
+  textureId1 = LoadTexture2DFromTGA("../Resources/Textures/Rock.tga",GL_NEAREST,GL_NEAREST,GL_REPEAT,GL_REPEAT);
+  if (textureId1==0) return -1;
+  mtex1 = LoadTexture2DFromTGA("../Resources/Textures/Bus.tga",GL_LINEAR,GL_LINEAR,GL_CLAMP_TO_EDGE,GL_CLAMP_TO_EDGE);
+  if (mtex1==0) return -1;
   return myShaders.Init("../Resources/Shaders/TriangleShaderVS.vs", "../Resources/Shaders/TriangleShaderFS.fs");
 }
 
@@ -289,7 +292,7 @@ void DrawArrays(GLuint vbuffer, GLuint ibuffer, GLenum mode, GLint first, GLsize
     glUniform1i(myShaders.samplerUniform, 0);
   }
   if (ibuffer != 0)
-  glDrawElements(mode, count, GL_UNSIGNED_SHORT, bus->ind); else
+  glDrawElements(mode, count, GL_UNSIGNED_SHORT, v); else
   glDrawArrays(mode, first, count);
   if(myShaders.positionAttribute != -1)
     glDisableVertexAttribArray(myShaders.positionAttribute);
@@ -311,26 +314,27 @@ void Draw(ESContext *esContext)
   glUseProgram(myShaders.program);
   
   model.identity();
-  model.scale(5);
+ // model.scale(5);
   world=projection*view*model;
 
-  DrawArrays(ax_vbo, 0, GL_LINES, 0, 6, 0);
+ // DrawArrays(ax_vbo, 0, GL_LINES, 0, 6, 0);
 
   model.identity();
-  model.translateX(1);
+ // model.translateX(1);
   world=projection*view*model;
 
-  DrawArrays(vboId, 0, GL_TRIANGLES, 0, 3, 0);
+ // DrawArrays(vboId, 0, GL_TRIANGLES, 0, 3, 0);
 
-  model.rotateY(90);
+ // model.rotateY(90);
   world=projection*view*model;
 
-  DrawArrays(vboId, 0, GL_TRIANGLES, 0, 3, textureId1);
+ // DrawArrays(vboId, 0, GL_TRIANGLES, 0, 3, textureId1);
 
-  model.translateX(-2);
+  model.translateY(-5);
+  model.scale(0.1,0.1,0.1);
   world=projection*view*model;
 
-  DrawArrays(mvert1, mind1, GL_TRIANGLE_STRIP, 0, 1902, mtex1);
+  DrawArrays(mvert1, mind1, GL_TRIANGLES, 0, 1902, mtex1);
 
   eglSwapBuffers(esContext->eglDisplay, esContext->eglSurface);
 }
@@ -344,7 +348,7 @@ void Update(ESContext *esContext, float deltaTime)
   view.rotateYc(rotateY);
   view.rotateZc(rotateZ);
   view.scale(scaleX,scaleY,scaleZ);  
-  view.translate(translateX,translateY,translateZ);
+  view.translate(translateX,translateY,translateZ-20);
   world=projection*view*model;
 }
 
@@ -397,9 +401,6 @@ void Key(ESContext *esContext, unsigned char key, bool bIsPressed)
 
 void CleanUp()
 {
-  delete [] bus->vert;
-  delete [] bus->ind;
-  delete bus;
   glDeleteBuffers(1, &vboId);
   glDeleteBuffers(1, &ax_vbo);
   glDeleteBuffers(1, &mvert1);
@@ -425,10 +426,10 @@ int _tmain(int argc, _TCHAR* argv[])
   //md.translateX(55);
   //printf("Orthogonal factor: %d \n",md.isOrtogonal()); 
   end_x:
-  printf("Error initializing scene!\n");
-  CleanUp(); 
+  printf("Error initializing scene!\n");  
   esRelease(&esContext);
-  dmp: 
+  dmp:
+  CleanUp(); 
   MemoryDump(); // identifying memory leaks
   printf("Press any key...\n");
   _getch();

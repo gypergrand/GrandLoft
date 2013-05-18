@@ -11,7 +11,7 @@ struct Vertex
 
 struct Index 
 {
-  VMATH::Vector3<GLushort> pos;
+  GLushort pos;
 };
 
 struct Model 
